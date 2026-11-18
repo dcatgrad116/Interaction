@@ -9,14 +9,12 @@ const DB_FILE = join(DATA_DIR, 'works.json');
 const TYPES = { png: 'image/png', webp: 'image/webp' };
 
 export function localApi() {
-  mkdirSync(DATA_DIR, { recursive: true });
   // 作品清單以硬碟上的 works.json 為準（同時開好幾個伺服器時，資料才會一致）
   const load = () => {
     try { return existsSync(DB_FILE) ? JSON.parse(readFileSync(DB_FILE, 'utf8')) : []; }
     catch { return works; } // 檔案寫到一半時讀不到，先用舊的
   };
   let works = [];
-  works = load();
   const save = () => writeFileSync(DB_FILE, JSON.stringify(works, null, 2));
   // 目前連線中的大螢幕／管理頁（Server-Sent Events）
   const clients = new Set();
@@ -24,11 +22,6 @@ export function localApi() {
     const payload = `data: ${JSON.stringify(works)}\n\n`;
     clients.forEach((res) => res.write(payload));
   };
-  // works.json 被別的伺服器改了 → 重新讀取並通知大螢幕
-  watchFile(DB_FILE, { interval: 500 }, () => {
-    works = load();
-    broadcast();
-  });
 
   // 讀取 POST 進來的 JSON 內容
   const readBody = (req) =>
@@ -46,7 +39,17 @@ export function localApi() {
 
   return {
     name: 'local-api',
+    apply: 'serve', // 只在 npm run dev 時啟用；打包（npm run build）時完全不載入
     configureServer(server) {
+      // 以下只在開發伺服器啟動時執行，打包時不會跑，避免程式卡住不結束
+      mkdirSync(DATA_DIR, { recursive: true });
+      works = load();
+      // works.json 被別的伺服器改了 → 重新讀取並通知大螢幕
+      watchFile(DB_FILE, { interval: 500 }, () => {
+        works = load();
+        broadcast();
+      });
+
       server.middlewares.use(async (req, res, next) => {
         if (!req.url.startsWith('/api/')) return next();
         const url = new URL(req.url, 'http://x');
