@@ -1,0 +1,12 @@
+node_modules
+dist
+.local-data
+.env
+# Figma 原始大圖（已壓縮到 public/assets）
+figma-assets/bg.png
+
+# 安全規則含管理員信箱，不公開；組員請參考 firestore.rules.example
+firestore.rules
+
+# macOS 系統檔
+.DS_Store

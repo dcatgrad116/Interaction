@@ -1,0 +1,41 @@
+rules_version = '2';
+
+// Firestore 安全規則：決定誰可以讀、寫、刪哪些資料
+// 部署方式：Firebase 主控台 → Firestore Database → 規則（Rules）→ 貼上這整份 → 發布
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 管理員（可以刪作品的人）的 Google 信箱
+    // 要加人：在方括號裡用逗號隔開，例如 ['a@gmail.com', 'b@gmail.com']，改完重新發布規則
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email in ['YOUR_ADMIN_EMAIL@gmail.com'];
+    }
+
+    match /works/{workId} {
+      // 任何人都能看作品（大螢幕需要）
+      allow read: if true;
+
+      // 任何人都能新增作品，但內容必須符合格式，避免有人亂塞資料
+      allow create: if
+        request.resource.data.keys().hasOnly(['image', 'name', 'message', 'character', 'createdAt'])
+        // 圖片：必須是 png 或 webp 的 dataURL，而且不超過約 750KB
+        && request.resource.data.image is string
+        && request.resource.data.image.size() < 750000
+        && request.resource.data.image.matches('^data:image/(png|webp);base64,.*')
+        // 暱稱 1～10 字、留言 0～20 字
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 10
+        && request.resource.data.message is string
+        && request.resource.data.message.size() <= 20
+        && request.resource.data.character is string
+        // 時間必須用伺服器時間，不能自己亂填
+        && request.resource.data.createdAt == request.time;
+
+      // 作品送出後不能修改；只有管理員可以刪除
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+  }
+}

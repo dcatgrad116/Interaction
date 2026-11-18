@@ -1,0 +1,79 @@
+/* ===== 展場大螢幕樣式（設計稿 1440×1024，依視窗寬度等比縮放） ===== */
+.screen {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: url('/assets/bg.webp') center / cover no-repeat, #3b4790;
+  cursor: none; /* 展場不顯示滑鼠 */
+}
+/* 設計稿上的一層淡灰色薄膜 */
+.screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(146, 146, 146, 0.2);
+}
+
+/* 左上角標題區（疊在作品上方） */
+.screen__head { position: absolute; z-index: 60; pointer-events: none; }
+.screen__head h1 { font-family: var(--serif); font-weight: 500; white-space: nowrap; }
+.screen__starline { position: relative; overflow: hidden; }
+.screen__starline img { position: absolute; top: 0; max-width: none; }
+
+/* 飄浮的作品 */
+.sprite {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform;
+}
+.sprite img {
+  position: relative;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 4px 5px rgba(54, 63, 89, 0.55));
+}
+.sprite__mirror {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-58%);
+  line-height: 1;
+  z-index: 0;
+}
+
+/* 底部字幕條 */
+.caption {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-38%);
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  animation: caption-in 0.6s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+@keyframes caption-in {
+  from { opacity: 0; transform: translateX(-38%) translateY(40%); }
+}
+.caption__bar {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  background: rgba(130, 193, 198, 0.6);
+  box-shadow: inset 0 4px 15px rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+.caption__thumb {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-58%);
+  width: auto;
+  z-index: 1;
+  filter: drop-shadow(0 4px 5px rgba(54, 63, 89, 0.55));
+}
+.caption__name { color: var(--deep); font-family: var(--sans); }
+.caption__msg {
+  color: #fff;
+  font-family: var(--sans);
+  text-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+}

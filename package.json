@@ -1,0 +1,26 @@
+{
+  "name": "jing-xing-shi-exhibition",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "assets": "node scripts/optimize-assets.mjs",
+    "fetch-model": "node scripts/fetch-bg-model.mjs"
+  },
+  "dependencies": {
+    "@imgly/background-removal": "^1.6.0",
+    "firebase": "^11.6.0",
+    "konva": "^9.3.18",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-konva": "^18.2.10"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.4.1",
+    "sharp": "^0.34.2",
+    "vite": "^6.3.5"
+  }
+}

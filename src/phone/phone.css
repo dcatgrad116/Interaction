@@ -1,0 +1,255 @@
+/* ===== 手機 App 樣式（設計稿基準寬度 393px） ===== */
+
+/* 整個畫面：背景圖 + 灰底，最寬 430px 置中（平板或電腦打開也不會跑版） */
+.phone {
+  position: relative;
+  min-height: 100dvh;
+  max-width: 430px;
+  margin: 0 auto;
+  background: #575757;
+  overflow-x: hidden;
+}
+.phone::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  max-width: 430px;
+  margin: 0 auto;
+  background: url('/assets/bg.webp') center / cover no-repeat;
+  opacity: 0.9;
+  z-index: 0;
+}
+.page {
+  position: relative;
+  z-index: 1;
+  padding: 79px 39px 48px;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  animation: page-in 0.35s ease-out;
+}
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- 共用：步驟標題 ---------- */
+.step-head { display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+.step-head__no { font-size: 11px; font-weight: 500; }
+.step-head__title { font-family: var(--serif); font-weight: 700; font-size: 20px; line-height: 1.2; }
+.starline { height: 11px; overflow: hidden; }
+.starline img { width: 402px; max-width: none; }
+
+/* ---------- 共用：膠囊按鈕（出發／確定／上一步／下一步） ---------- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 102px;
+  height: 37px;
+  border: 1.5px solid var(--teal);
+  border-radius: 19px;
+  background: var(--pill-bg);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  font-weight: 600;
+  font-size: 16px;
+  transition: transform 0.12s, opacity 0.2s;
+}
+.pill:active { transform: scale(0.95); }
+.pill:disabled { opacity: 0.45; }
+.pill--wide { width: 130px; font-weight: 700; }
+.pill-row { display: flex; justify-content: center; gap: 8px; margin-top: auto; padding-top: 28px; }
+
+/* ---------- 共用：毛玻璃卡片 ---------- */
+.glass {
+  position: relative;
+  border-radius: 15px;
+  background: var(--glass);
+  box-shadow: var(--glass-inset);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.lead { font-size: 14px; line-height: 1.5; text-align: justify; margin-top: 18px; }
+
+/* ===== 首頁 ===== */
+.home {
+  justify-content: center;
+  align-items: center;
+  gap: 27px;
+  text-align: center;
+  padding-top: 0;
+  padding-bottom: 39px;
+}
+.home__logo { width: 241px; }
+.home__starline { width: 321px; height: 14px; overflow: hidden; }
+.home__starline img { width: 508px; max-width: none; }
+.home__text { font-family: var(--serif); font-weight: 600; font-size: 18px; line-height: 1.5; }
+
+/* ===== STEP 1 選擇小夥伴 ===== */
+.char-list { display: flex; flex-direction: column; gap: 24px; margin-top: 24px; }
+.char-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 160px;
+  padding: 25px 19px 24px;
+  text-align: left;
+  transition: transform 0.15s;
+}
+.char-card:active { transform: scale(0.97); }
+.char-card__img {
+  flex: 0 0 118px;
+  height: 111px;
+  object-fit: contain;
+  filter: var(--char-shadow);
+}
+.char-card__name { font-family: var(--serif); font-weight: 600; font-size: 16px; }
+.char-card__desc { font-size: 13px; line-height: 1.45; margin-top: 6px; }
+
+/* 確認選擇的彈窗 */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 24, 40, 0.72);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: fade-in 0.2s;
+}
+@keyframes fade-in { from { opacity: 0; } }
+.confirm { width: 199px; text-align: center; }
+.confirm__label { font-family: var(--serif); font-weight: 500; font-size: 16px; text-align: left; }
+.confirm__img {
+  width: 199px;
+  height: 187px;
+  object-fit: contain;
+  margin-top: 26px;
+  filter: var(--char-shadow);
+  animation: pop 0.4s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+@keyframes pop { from { transform: scale(0.6); opacity: 0; } }
+.confirm__name { font-family: var(--serif); font-weight: 700; font-size: 20px; margin: 19px 0 30px; }
+.confirm__close { position: absolute; top: 24px; right: 24px; font-size: 26px; opacity: 0.8; }
+
+/* ===== STEP 2 裝飾 ===== */
+.canvas-card { margin-top: 18px; width: 100%; aspect-ratio: 314 / 339; overflow: hidden; }
+.canvas-card .konvajs-content { touch-action: none; }
+.canvas-hint {
+  position: absolute; left: 0; right: 0; bottom: 10px;
+  text-align: center; font-size: 11px; opacity: 0.75; pointer-events: none;
+}
+.tool-group { margin-top: 17px; }
+.tool-group__label { font-size: 12px; margin-bottom: 8px; }
+.tool-group__label b { font-weight: 600; }
+
+.photo-row { display: flex; gap: 8px; }
+.btn-outline, .btn-solid {
+  height: 41px;
+  border-radius: 15px;
+  font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-outline { flex: 0 0 70.4%; border: 1.5px solid var(--mint); font-weight: 500; }
+.btn-solid { flex: 1; background: var(--mint); color: var(--navy); font-weight: 600; }
+.btn-solid:disabled { opacity: 0.45; }
+
+.emoji-row { display: flex; justify-content: space-between; }
+.emoji-btn {
+  width: 42px; height: 42px;
+  border: 1.5px solid var(--mint);
+  border-radius: 50%;
+  font-size: 20px;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.12s;
+}
+.emoji-btn:active { transform: scale(0.88); }
+.emoji-btn--more { background: var(--mint); }
+
+.ctrl-row { display: flex; justify-content: space-between; gap: 4px; }
+.ctrl-row + .ctrl-row { margin-top: 10px; }
+.ctrl {
+  height: 30px;
+  min-width: 48px;
+  padding: 0 8px;
+  border: 1.5px solid var(--mint);
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ctrl:disabled { opacity: 0.4; }
+.ctrl:active:not(:disabled) { background: rgba(190, 222, 225, 0.3); }
+
+/* 底部彈出面板（更多 emoji、照片編輯） */
+.sheet-wrap { align-items: flex-end; }
+.sheet {
+  width: 100%;
+  max-width: 430px;
+  padding: 20px 24px 32px;
+  border-radius: 20px 20px 0 0;
+  background: rgba(54, 63, 89, 0.92);
+  animation: slide-up 0.25s ease-out;
+}
+@keyframes slide-up { from { transform: translateY(100%); } }
+.sheet__title { font-family: var(--serif); font-weight: 600; font-size: 16px; margin-bottom: 14px; }
+.sheet__grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; justify-items: center; }
+.sheet__actions { display: flex; flex-direction: column; gap: 10px; }
+.sheet__actions .btn-outline { flex: none; width: 100%; }
+
+/* 去背中的遮罩 */
+.busy {
+  position: absolute; inset: 0; z-index: 5;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  border-radius: 15px;
+  background: rgba(54, 63, 89, 0.55);
+  font-size: 14px;
+}
+.spinner {
+  width: 34px; height: 34px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== STEP 3 發聲 ===== */
+.preview-card {
+  margin-top: 24px;
+  width: 100%;
+  aspect-ratio: 314 / 339;
+  display: flex; align-items: center; justify-content: center;
+  padding: 25px 27px;
+}
+.preview-card img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.field { margin-top: 33px; }
+.field + .field { margin-top: 29px; }
+.field__label { font-family: var(--serif); font-weight: 500; font-size: 16px; padding-left: 11px; }
+.field__box {
+  display: block;
+  width: 100%;
+  margin-top: 18px;
+  padding: 22px 19px;
+  border: none;
+  border-radius: 15px;
+  background: rgba(54, 63, 89, 0.6);
+  box-shadow: var(--glass-inset);
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 16px;
+  outline: none;
+  resize: none;
+}
+.field__box::placeholder { color: rgba(255, 255, 255, 0.6); }
+.field__box:focus { background: rgba(54, 63, 89, 0.78); }
+.field__count { text-align: right; font-size: 11px; opacity: 0.7; margin-top: 6px; }
+.error { margin-top: 14px; font-size: 13px; color: #ffd5d5; text-align: center; }
+
+/* ===== STEP 4 完成 ===== */
+.done__text { font-size: 20px; line-height: 1.5; text-align: center; margin-top: 52px; }
+.done__btns { display: flex; justify-content: center; gap: 13px; margin-top: 52px; }

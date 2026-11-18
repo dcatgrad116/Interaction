@@ -1,0 +1,33 @@
+/* 設計稿的顏色、字型（全部頁面共用） */
+:root {
+  --navy: #363f59;        /* 深藍：編輯按鈕文字、輸入框底色 */
+  --teal: #548ca1;        /* 藍綠：膠囊按鈕外框 */
+  --mint: #bedee1;        /* 淺薄荷：工具按鈕外框、編輯按鈕底色 */
+  --glass: rgba(195, 251, 255, 0.45); /* 毛玻璃卡片底色 */
+  --caption: #82c1c6;     /* 大螢幕字幕條 */
+  --deep: #003660;        /* 大螢幕暱稱文字 */
+  --white: #ffffff;
+
+  --serif: 'Noto Serif TC', serif;
+  --sans: 'Noto Sans TC', system-ui, sans-serif;
+
+  /* 膠囊按鈕的漸層底（設計稿 247° 漸層） */
+  --pill-bg: linear-gradient(247.4deg, rgba(84, 140, 161, 0.3) 11.5%, rgba(54, 63, 89, 0.3) 68.4%);
+  /* 卡片內側的白色光暈 */
+  --glass-inset: inset 0 4px 15px rgba(255, 255, 255, 0.5);
+  /* 小夥伴的投影 */
+  --char-shadow: drop-shadow(0 4px 5.3px rgba(54, 63, 89, 0.75));
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; }
+body {
+  font-family: var(--sans);
+  color: var(--white);
+  background: #3b4790;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; border: none; background: none; }
+img { display: block; }
