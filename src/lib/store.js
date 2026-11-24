@@ -84,14 +84,112 @@ export function subscribeWorks(callback) {
   return () => { cancelled = true; unsub(); };
 }
 
-/** 刪除作品（管理頁使用；Firebase 模式需要先用管理員帳號登入） */
+// ---------- 管理：垃圾桶與操作紀錄 ----------
+// 刪除不是真的刪掉，而是把作品「搬」到垃圾桶（trash），之後可以復原
+// 每次刪除、復原、永久刪除都會在 logs 留一筆紀錄：誰、什麼時候、對哪件作品做了什麼
+// Firebase 模式用「批次寫入」：搬家＋刪原本的＋寫紀錄，要嘛全部成功、要嘛全部不做
+
+// 本機模式的小工具：送出請求，失敗就丟出錯誤
+async function localCall(url, method) {
+  const res = await fetch(url, { method });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+// 目前登入的管理員信箱（寫進紀錄用）
+const adminEmail = () => fb?.authInst.currentUser?.email ?? '';
+
+// 寫一筆操作紀錄到批次裡
+function addLog(batch, { fs, db }, action, workId, workName) {
+  batch.set(fs.doc(db, 'logs', newId()), {
+    action, // 'delete' 刪除｜'restore' 復原｜'purge' 永久刪除
+    workId,
+    workName,
+    by: adminEmail(),
+    at: fs.serverTimestamp(),
+  });
+}
+
+/** 刪除作品：移到垃圾桶（大螢幕上立刻消失，但之後還能復原） */
 export async function deleteWork(id) {
+  if (!hasFirebase) return localCall(`/api/works/${id}`, 'DELETE');
+  const f = await getFirebase();
+  const { fs, db } = f;
+  const snap = await fs.getDoc(fs.doc(db, 'works', id));
+  if (!snap.exists()) return; // 可能別的管理員剛刪掉了
+  const work = snap.data();
+  const batch = fs.writeBatch(db);
+  batch.set(fs.doc(db, 'trash', id), { ...work, deletedBy: adminEmail(), deletedAt: fs.serverTimestamp() });
+  batch.delete(fs.doc(db, 'works', id));
+  addLog(batch, f, 'delete', id, work.name);
+  await batch.commit();
+}
+
+/** 復原：從垃圾桶搬回作品清單（保留原本的上傳時間） */
+export async function restoreWork(id) {
+  if (!hasFirebase) return localCall(`/api/trash/${id}/restore`, 'POST');
+  const f = await getFirebase();
+  const { fs, db } = f;
+  const snap = await fs.getDoc(fs.doc(db, 'trash', id));
+  if (!snap.exists()) return;
+  const { deletedBy, deletedAt, ...work } = snap.data(); // 拿掉垃圾桶專用的欄位
+  const batch = fs.writeBatch(db);
+  batch.set(fs.doc(db, 'works', id), work);
+  batch.delete(fs.doc(db, 'trash', id));
+  addLog(batch, f, 'restore', id, work.name);
+  await batch.commit();
+}
+
+/** 永久刪除：從垃圾桶清掉，之後就救不回來了 */
+export async function purgeWork(id) {
+  if (!hasFirebase) return localCall(`/api/trash/${id}`, 'DELETE');
+  const f = await getFirebase();
+  const { fs, db } = f;
+  const snap = await fs.getDoc(fs.doc(db, 'trash', id));
+  if (!snap.exists()) return;
+  const batch = fs.writeBatch(db);
+  batch.delete(fs.doc(db, 'trash', id));
+  addLog(batch, f, 'purge', id, snap.data().name);
+  await batch.commit();
+}
+
+// Firestore 時間 → 毫秒（剛寫入時可能還是 null，先用現在時間代替）
+const toMs = (t) => t?.toMillis?.() ?? Date.now();
+
+/**
+ * 訂閱垃圾桶和操作紀錄（只有管理員讀得到）
+ * callback 收到 { trash, logs }，兩者都是「新 → 舊」
+ * onError 收到錯誤（例如登入的帳號不是管理員）
+ */
+export function subscribeAdminData(callback, onError) {
   if (!hasFirebase) {
-    await fetch(`/api/works/${id}`, { method: 'DELETE' });
-    return;
+    const es = new EventSource('/api/admin-stream');
+    es.onmessage = (e) => callback(JSON.parse(e.data));
+    return () => es.close();
   }
-  const { fs, db } = await getFirebase();
-  await fs.deleteDoc(fs.doc(db, 'works', id));
+  const state = { trash: [], logs: [] };
+  const unsubs = [];
+  let cancelled = false;
+  getFirebase().then(({ fs, db }) => {
+    if (cancelled) return;
+    const trashQ = fs.query(fs.collection(db, 'trash'), fs.orderBy('deletedAt', 'desc'), fs.limit(SCREEN_LIMIT));
+    unsubs.push(
+      fs.onSnapshot(trashQ, (snap) => {
+        state.trash = snap.docs.map((d) => {
+          const { image, createdAt, deletedAt, ...rest } = d.data();
+          return { id: d.id, ...rest, imageUrl: image, createdAt: toMs(createdAt), deletedAt: toMs(deletedAt) };
+        });
+        callback({ ...state });
+      }, onError),
+    );
+    const logsQ = fs.query(fs.collection(db, 'logs'), fs.orderBy('at', 'desc'), fs.limit(SCREEN_LIMIT));
+    unsubs.push(
+      fs.onSnapshot(logsQ, (snap) => {
+        state.logs = snap.docs.map((d) => ({ id: d.id, ...d.data(), at: toMs(d.data().at) }));
+        callback({ ...state });
+      }, onError),
+    );
+  });
+  return () => { cancelled = true; unsubs.forEach((u) => u()); };
 }
 
 // ---------- 管理員登入（只有 Firebase 模式需要） ----------

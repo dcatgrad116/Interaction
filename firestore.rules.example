@@ -5,11 +5,21 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 管理員（可以刪作品的人）的 Google 信箱
+    // 管理員（可以刪除、復原作品的人）的 Google 信箱
     // 要加人：在方括號裡用逗號隔開，例如 ['a@gmail.com', 'b@gmail.com']，改完重新發布規則
     function isAdmin() {
       return request.auth != null
         && request.auth.token.email in ['YOUR_ADMIN_EMAIL@gmail.com'];
+    }
+
+    // 作品的欄位只能有這幾個
+    function isWorkShape(data) {
+      return data.keys().hasOnly(['image', 'name', 'message', 'character', 'createdAt']);
+    }
+
+    // 某件作品在垃圾桶裡的路徑
+    function trashPath(id) {
+      return /databases/$(database)/documents/trash/$(id);
     }
 
     match /works/{workId} {
@@ -17,8 +27,8 @@ service cloud.firestore {
       allow read: if true;
 
       // 任何人都能新增作品，但內容必須符合格式，避免有人亂塞資料
-      allow create: if
-        request.resource.data.keys().hasOnly(['image', 'name', 'message', 'character', 'createdAt'])
+      allow create: if (
+        isWorkShape(request.resource.data)
         // 圖片：必須是 png 或 webp 的 dataURL，而且不超過約 750KB
         && request.resource.data.image is string
         && request.resource.data.image.size() < 750000
@@ -31,11 +41,41 @@ service cloud.firestore {
         && request.resource.data.message.size() <= 20
         && request.resource.data.character is string
         // 時間必須用伺服器時間，不能自己亂填
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.createdAt == request.time
+      ) || (
+        // 管理員從垃圾桶復原：保留原本的上傳時間，而且垃圾桶裡要真的有這件作品
+        isAdmin()
+        && isWorkShape(request.resource.data)
+        && request.resource.data.createdAt is timestamp
+        && exists(trashPath(workId))
+      );
 
-      // 作品送出後不能修改；只有管理員可以刪除
+      // 作品送出後不能修改；只有管理員可以刪除（會一起搬到垃圾桶）
       allow update: if false;
       allow delete: if isAdmin();
+    }
+
+    // 垃圾桶：只有管理員看得到、放得進去、清得掉
+    match /trash/{workId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly(['image', 'name', 'message', 'character', 'createdAt', 'deletedBy', 'deletedAt'])
+        // 「誰刪的」只能填自己的信箱、時間只能用伺服器時間，不能冒名或亂填
+        && request.resource.data.deletedBy == request.auth.token.email
+        && request.resource.data.deletedAt == request.time;
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // 操作紀錄：只有管理員看得到、能新增；寫進去之後誰都不能改、不能刪
+    match /logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly(['action', 'workId', 'workName', 'by', 'at'])
+        && request.resource.data.action in ['delete', 'restore', 'purge']
+        && request.resource.data.by == request.auth.token.email
+        && request.resource.data.at == request.time;
+      allow update, delete: if false;
     }
   }
 }

@@ -1,26 +1,54 @@
 // 本機測試用後端（只在 npm run dev 時運作）
-// 功能：收作品、刪除作品、即時推播最新清單給大螢幕和管理頁
+// 功能：收作品、刪除（移到垃圾桶）、復原、永久刪除、操作紀錄，並即時推播給大螢幕和管理頁
 // 資料存在專案底下的 .local-data 資料夾，重開伺服器也不會消失
 import { mkdirSync, readFileSync, writeFileSync, existsSync, unlinkSync, watchFile } from 'node:fs';
 import { join } from 'node:path';
 
 const DATA_DIR = '.local-data';
-const DB_FILE = join(DATA_DIR, 'works.json');
+const FILES = {
+  works: join(DATA_DIR, 'works.json'), // 作品
+  trash: join(DATA_DIR, 'trash.json'), // 垃圾桶
+  logs: join(DATA_DIR, 'logs.json'), // 操作紀錄
+};
 const TYPES = { png: 'image/png', webp: 'image/webp' };
+const LOCAL_ADMIN = '本機測試'; // 本機模式不用登入，紀錄裡的管理員就寫這個
 
 export function localApi() {
-  // 作品清單以硬碟上的 works.json 為準（同時開好幾個伺服器時，資料才會一致）
-  const load = () => {
-    try { return existsSync(DB_FILE) ? JSON.parse(readFileSync(DB_FILE, 'utf8')) : []; }
-    catch { return works; } // 檔案寫到一半時讀不到，先用舊的
+  // 資料以硬碟上的 json 為準（同時開好幾個伺服器時，資料才會一致）
+  const db = { works: [], trash: [], logs: [] };
+  const load = (key) => {
+    try { return existsSync(FILES[key]) ? JSON.parse(readFileSync(FILES[key], 'utf8')) : []; }
+    catch { return db[key]; } // 檔案寫到一半時讀不到，先用舊的
   };
-  let works = [];
-  const save = () => writeFileSync(DB_FILE, JSON.stringify(works, null, 2));
+  const loadAll = () => Object.keys(FILES).forEach((k) => (db[k] = load(k)));
+  const save = (key) => writeFileSync(FILES[key], JSON.stringify(db[key], null, 2));
+
   // 目前連線中的大螢幕／管理頁（Server-Sent Events）
-  const clients = new Set();
+  const clients = new Set(); // 收作品清單
+  const adminClients = new Set(); // 收垃圾桶＋紀錄
+  const adminPayload = () => ({
+    trash: [...db.trash].reverse(), // 新 → 舊
+    logs: [...db.logs].reverse(),
+  });
   const broadcast = () => {
-    const payload = `data: ${JSON.stringify(works)}\n\n`;
-    clients.forEach((res) => res.write(payload));
+    const works = `data: ${JSON.stringify(db.works)}\n\n`;
+    clients.forEach((res) => res.write(works));
+    const admin = `data: ${JSON.stringify(adminPayload())}\n\n`;
+    adminClients.forEach((res) => res.write(admin));
+  };
+  const openStream = (req, res, set, first) => {
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+    res.write(`data: ${JSON.stringify(first)}\n\n`);
+    set.add(res);
+    req.on('close', () => set.delete(res));
+  };
+
+  // 寫一筆操作紀錄
+  const addLog = (action, work) => {
+    db.logs.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      action, workId: work.id, workName: work.name, by: LOCAL_ADMIN, at: Date.now(),
+    });
   };
 
   // 讀取 POST 進來的 JSON 內容
@@ -43,29 +71,31 @@ export function localApi() {
     configureServer(server) {
       // 以下只在開發伺服器啟動時執行，打包時不會跑，避免程式卡住不結束
       mkdirSync(DATA_DIR, { recursive: true });
-      works = load();
-      // works.json 被別的伺服器改了 → 重新讀取並通知大螢幕
-      watchFile(DB_FILE, { interval: 500 }, () => {
-        works = load();
-        broadcast();
-      });
+      loadAll();
+      // json 被別的伺服器改了 → 重新讀取並通知大螢幕和管理頁
+      Object.values(FILES).forEach((f) =>
+        watchFile(f, { interval: 500 }, () => {
+          loadAll();
+          broadcast();
+        }),
+      );
 
       server.middlewares.use(async (req, res, next) => {
         if (!req.url.startsWith('/api/')) return next();
         const url = new URL(req.url, 'http://x');
+        const done = () => {
+          broadcast();
+          return res.end('ok');
+        };
+        const notFound = () => {
+          res.statusCode = 404;
+          return res.end('找不到這件作品');
+        };
 
-        // 即時推播：大螢幕連上後持續收到最新清單
-        if (url.pathname === '/api/stream') {
-          res.writeHead(200, {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            Connection: 'keep-alive',
-          });
-          res.write(`data: ${JSON.stringify(works)}\n\n`);
-          clients.add(res);
-          req.on('close', () => clients.delete(res));
-          return;
-        }
+        // 即時推播：大螢幕連上後持續收到最新作品清單
+        if (url.pathname === '/api/stream') return openStream(req, res, clients, db.works);
+        // 即時推播：管理頁的垃圾桶和操作紀錄
+        if (url.pathname === '/api/admin-stream') return openStream(req, res, adminClients, adminPayload());
 
         // 新增作品：收到 dataURL 圖片，依格式存成 png 或 webp 檔
         if (url.pathname === '/api/works' && req.method === 'POST') {
@@ -84,9 +114,9 @@ export function localApi() {
               imageUrl: `/api/img/${id}`,
               createdAt: Date.now(),
             };
-            works = load(); // 先讀最新的，避免蓋掉別的伺服器剛存的作品
-            works.push(work);
-            save();
+            loadAll(); // 先讀最新的，避免蓋掉別的伺服器剛存的作品
+            db.works.push(work);
+            save('works');
             broadcast();
             res.setHeader('Content-Type', 'application/json');
             return res.end(JSON.stringify(work));
@@ -96,15 +126,46 @@ export function localApi() {
           }
         }
 
-        // 刪除作品（管理頁使用）
+        // 刪除作品 → 移到垃圾桶（圖片檔先留著，復原時才用得到）
         const del = url.pathname.match(/^\/api\/works\/(\w+)$/);
         if (del && req.method === 'DELETE') {
-          works = load().filter((w) => w.id !== del[1]);
-          const file = imageFile(del[1]);
+          loadAll();
+          const work = db.works.find((w) => w.id === del[1]);
+          if (!work) return notFound();
+          db.works = db.works.filter((w) => w.id !== work.id);
+          db.trash.push({ ...work, deletedBy: LOCAL_ADMIN, deletedAt: Date.now() });
+          addLog('delete', work);
+          ['works', 'trash', 'logs'].forEach(save);
+          return done();
+        }
+
+        // 復原：從垃圾桶搬回作品清單
+        const restore = url.pathname.match(/^\/api\/trash\/(\w+)\/restore$/);
+        if (restore && req.method === 'POST') {
+          loadAll();
+          const item = db.trash.find((w) => w.id === restore[1]);
+          if (!item) return notFound();
+          const { deletedBy, deletedAt, ...work } = item;
+          db.trash = db.trash.filter((w) => w.id !== work.id);
+          db.works.push(work);
+          db.works.sort((a, b) => a.createdAt - b.createdAt); // 回到原本的時間順序
+          addLog('restore', work);
+          ['works', 'trash', 'logs'].forEach(save);
+          return done();
+        }
+
+        // 永久刪除：從垃圾桶清掉，連圖片檔一起刪
+        const purge = url.pathname.match(/^\/api\/trash\/(\w+)$/);
+        if (purge && req.method === 'DELETE') {
+          loadAll();
+          const item = db.trash.find((w) => w.id === purge[1]);
+          if (!item) return notFound();
+          db.trash = db.trash.filter((w) => w.id !== item.id);
+          const file = imageFile(item.id);
           if (file) unlinkSync(file);
-          save();
-          broadcast();
-          return res.end('ok');
+          addLog('purge', item);
+          ['trash', 'logs'].forEach(save);
+          return done();
         }
 
         // 讀取作品圖片（相容舊網址 /api/img/xxx.png）
