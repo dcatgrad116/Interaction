@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <!-- viewport-fit=cover：讓 iPhone 瀏海區域也能顯示背景 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
-    <!-- 瀏覽器網址列、頂部回彈區的顏色：跟背景圖上緣一致，才不會看到色差 -->
+    <!-- 瀏覽器網址列的顏色（舊版 iOS、Android Chrome 用）：跟背景圖上緣一致 -->
     <meta name="theme-color" content="#585a8b" />
     <title>鏡行式｜展覽小夥伴</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -12,6 +12,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&family=Noto+Serif+TC:wght@500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <!-- iOS 26 Safari 會抓這兩條細條的顏色，染上方狀態列和下方網址列（樣式在 phone.css） -->
+    <div class="safari-tint safari-tint--top" aria-hidden="true"></div>
+    <div class="safari-tint safari-tint--bottom" aria-hidden="true"></div>
     <div id="root"></div>
     <script type="module" src="/src/phone/main.jsx"></script>
   </body>

@@ -2,23 +2,38 @@
 
 /* 修正手機滑到頂／底時露出灰色底的問題：
    1) 關掉「回彈」效果（iOS Safari 16 以上、Android Chrome 支援），滑到底就停住
-   2) 萬一瀏覽器還是會回彈，露出來的底色用背景圖下緣的顏色（上緣由 index.html 的 theme-color 處理）
-   顏色＝背景圖邊緣平均色 × 90% ＋ 灰底 #575757 × 10%（跟畫面實際顯示的一樣） */
+   2) 萬一瀏覽器還是會回彈，露出來的底色用背景圖下緣的紫色
+   顏色＝背景圖邊緣平均色 × 90% ＋ 灰 #575757 × 10%（跟畫面實際顯示的一樣） */
 html,
 body {
   overscroll-behavior: none;
   background-color: #7e6f9f;
 }
 
-/* 整個畫面：背景圖 + 灰底，最寬 430px 置中（平板或電腦打開也不會跑版） */
+/* iOS 26 的 Safari 不再看 theme-color，改抓「貼在畫面最上／最下的 fixed 元素底色」
+   來染上方狀態列和下方網址列。所以放兩條幾乎看不到的細條，指定要染的顏色：
+   上面用背景圖上緣的深藍紫、下面用下緣的淡紫（元素放在 index.html） */
+.safari-tint {
+  position: fixed;
+  left: 0;
+  width: 100%;
+  height: 12px;
+  z-index: 100;
+  pointer-events: none; /* 不擋住點擊 */
+}
+.safari-tint--top { top: -7px; background-color: #585a8b; }
+.safari-tint--bottom { bottom: -8px; background-color: #7e6f9f; }
+
+/* 整個畫面：最寬 430px 置中（平板或電腦打開也不會跑版）
+   注意：這裡不能再設灰色底色，否則 iOS Safari 會把上下列染成灰色 */
 .phone {
   position: relative;
   min-height: 100dvh;
   max-width: 430px;
   margin: 0 auto;
-  background: #575757;
   overflow-x: hidden;
 }
+/* 背景圖固定不動，滑動時只有內容在動 */
 .phone::before {
   content: '';
   position: fixed;
@@ -26,8 +41,11 @@ body {
   inset: -60px 0;
   max-width: 430px;
   margin: 0 auto;
-  background: url('/assets/bg.webp') center / cover no-repeat;
-  opacity: 0.9;
+  /* 原本是「背景圖 90% 透明度疊在灰底上」，改成「背景圖上蓋一層 10% 的灰」，
+     看起來一模一樣，但頁面上就不會有灰色底色讓 Safari 抓到 */
+  background:
+    linear-gradient(rgba(87, 87, 87, 0.1), rgba(87, 87, 87, 0.1)),
+    url('/assets/bg.webp') center / cover no-repeat;
   z-index: 0;
 }
 .page {
