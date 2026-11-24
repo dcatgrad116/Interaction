@@ -252,6 +252,33 @@ body {
 .sheet__title { font-family: var(--serif); font-weight: 600; font-size: 16px; margin-bottom: 14px; }
 .sheet__grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; justify-items: center; }
 .sheet__actions { display: flex; flex-direction: column; gap: 10px; }
+
+/* 更多 emoji 面板：鍵盤輸入框 */
+.emoji-input { display: flex; gap: 8px; }
+.emoji-input__box {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  padding: 0 14px;
+  border: 1.5px solid var(--mint);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 16px; /* 至少 16px：iPhone 點輸入框時才不會自動放大畫面 */
+  outline: none;
+}
+.emoji-input__box::placeholder { color: rgba(255, 255, 255, 0.55); font-size: 14px; }
+.emoji-input__box:focus { background: rgba(255, 255, 255, 0.15); }
+.emoji-input__add {
+  flex: 0 0 64px;
+  height: 42px;
+  border-radius: 15px;
+  background: var(--mint);
+  color: var(--navy);
+  font-size: 14px;
+  font-weight: 600;
+}
+.emoji-input__add:active { transform: scale(0.95); }
+.emoji-input__hint { font-size: 11px; opacity: 0.75; margin: 8px 0 16px; }
 .sheet__actions .btn-outline { flex: none; width: 100%; }
 
 /* 去背中的遮罩 */

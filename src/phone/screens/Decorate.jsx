@@ -16,6 +16,19 @@ const HISTORY_MAX = 30; // 復原最多記幾步（太多會吃手機記憶體�
 const newId = () => Math.random().toString(36).slice(2, 9);
 const jitter = (n) => (Math.random() - 0.5) * n; // 新元素位置稍微錯開，才不會全部疊在正中間
 
+const EMOJI_INPUT_MAX = 5; // 鍵盤輸入一次最多加幾個 emoji
+
+// 從使用者輸入的文字裡挑出 emoji（中英文、數字、空白都會被丟掉）
+// 用「字素」切開，像 👨‍👩‍👧、👍🏽、🇹🇼 這種由好幾個字碼組成的 emoji 才會被當成一個
+const EMOJI_RE = /\p{Extended_Pictographic}|\p{Regional_Indicator}|⃣/u;
+function pickEmojis(text) {
+  const parts =
+    typeof Intl !== 'undefined' && Intl.Segmenter
+      ? [...new Intl.Segmenter('zh', { granularity: 'grapheme' }).segment(text)].map((s) => s.segment)
+      : Array.from(text); // 很舊的瀏覽器不支援 Segmenter，就一個字一個字切
+  return parts.filter((p) => EMOJI_RE.test(p));
+}
+
 // 復原的彎箭頭圖示；flip＝左右翻轉，變成重做
 function UndoIcon({ flip = false }) {
   return (
@@ -107,6 +120,8 @@ export default function Decorate({ character, items, setItems, onBack, onNext })
   const [notice, setNotice] = useState('');
   const [sheet, setSheet] = useState(null); // 'emoji' | 'edit' | null
   const [replaceId, setReplaceId] = useState(null); // 「換一張照片」時要替換的元素
+  const [emojiText, setEmojiText] = useState(''); // 鍵盤輸入框的內容
+  const [emojiHint, setEmojiHint] = useState(''); // 鍵盤輸入的提示訊息
   const [, setReadyTick] = useState(0); // 圖片載入完成時觸發重畫用
 
   const k = width / W; // 縮放倍率：設計尺寸 → 實際像素
@@ -222,6 +237,29 @@ export default function Decorate({ character, items, setItems, onBack, onNext })
   // ---------- emoji ----------
   const addEmoji = (text) => {
     add({ id: newId(), type: 'emoji', text, x: W / 2 + jitter(160), y: H / 2 + jitter(160), scale: 1, rotation: 0 });
+    setSheet(null);
+  };
+
+  // 開關「更多 emoji」面板；打開時清空上次的輸入
+  const openEmojiSheet = () => {
+    setEmojiText('');
+    setEmojiHint('');
+    setSheet('emoji');
+  };
+
+  // 鍵盤輸入的 emoji：一次可以好幾個，但整批只算「一步」，按一次復原就全部收回
+  const addTypedEmojis = (e) => {
+    e.preventDefault(); // 不要讓表單重新整理頁面
+    const found = pickEmojis(emojiText);
+    if (!found.length) {
+      setEmojiHint(emojiText.trim() ? '只能加入 emoji 喔，試試切換到 😀 鍵盤' : '先輸入一個 emoji');
+      return;
+    }
+    const list = found.slice(0, EMOJI_INPUT_MAX).map((text) => ({
+      id: newId(), type: 'emoji', text, x: W / 2 + jitter(160), y: H / 2 + jitter(160), scale: 1, rotation: 0,
+    }));
+    commit((items) => [...items, ...list]);
+    setSelectedId(list[list.length - 1].id);
     setSheet(null);
   };
 
@@ -397,7 +435,7 @@ export default function Decorate({ character, items, setItems, onBack, onNext })
           {QUICK_EMOJIS.map((e) => (
             <button key={e} className="emoji-btn" onClick={() => addEmoji(e)}>{e}</button>
           ))}
-          <button className="emoji-btn emoji-btn--more" aria-label="更多 emoji" onClick={() => setSheet('emoji')}>
+          <button className="emoji-btn emoji-btn--more" aria-label="更多 emoji" onClick={openEmojiSheet}>
             <img src="/assets/icon-more-horiz.svg" width="24" height="24" alt="" />
           </button>
         </div>
@@ -432,6 +470,22 @@ export default function Decorate({ character, items, setItems, onBack, onNext })
         <div className="modal sheet-wrap" onClick={() => setSheet(null)}>
           <div className="sheet" onClick={(e) => e.stopPropagation()}>
             <p className="sheet__title">選一個 emoji</p>
+
+            {/* 用手機鍵盤輸入任何 emoji */}
+            <form className="emoji-input" onSubmit={addTypedEmojis}>
+              <input
+                className="emoji-input__box"
+                value={emojiText}
+                onChange={(e) => { setEmojiText(e.target.value); setEmojiHint(''); }}
+                placeholder="點這裡，再切換到 😀 鍵盤"
+                enterKeyHint="done"
+                autoComplete="off"
+                aria-label="用鍵盤輸入 emoji"
+              />
+              <button type="submit" className="emoji-input__add">加入</button>
+            </form>
+            <p className="emoji-input__hint">{emojiHint || `一次最多 ${EMOJI_INPUT_MAX} 個，也可以從下面直接選`}</p>
+
             <div className="sheet__grid">
               {MORE_EMOJIS.map((e) => (
                 <button key={e} className="emoji-btn" onClick={() => addEmoji(e)}>{e}</button>
