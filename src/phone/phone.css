@@ -1,5 +1,15 @@
 /* ===== 手機 App 樣式（設計稿基準寬度 393px） ===== */
 
+/* 修正手機滑到頂／底時露出灰色底的問題：
+   1) 關掉「回彈」效果（iOS Safari 16 以上、Android Chrome 支援），滑到底就停住
+   2) 萬一瀏覽器還是會回彈，露出來的底色用背景圖下緣的顏色（上緣由 index.html 的 theme-color 處理）
+   顏色＝背景圖邊緣平均色 × 90% ＋ 灰底 #575757 × 10%（跟畫面實際顯示的一樣） */
+html,
+body {
+  overscroll-behavior: none;
+  background-color: #7e6f9f;
+}
+
 /* 整個畫面：背景圖 + 灰底，最寬 430px 置中（平板或電腦打開也不會跑版） */
 .phone {
   position: relative;
@@ -12,7 +22,8 @@
 .phone::before {
   content: '';
   position: fixed;
-  inset: 0;
+  /* 上下各多延伸一段：網址列收合、畫面高度變化時，背景圖也不會露出空隙 */
+  inset: -60px 0;
   max-width: 430px;
   margin: 0 auto;
   background: url('/assets/bg.webp') center / cover no-repeat;
