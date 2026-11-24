@@ -168,6 +168,30 @@ body {
 /* ===== STEP 2 裝飾 ===== */
 .canvas-card { margin-top: 18px; width: 100%; aspect-ratio: 314 / 339; overflow: hidden; }
 .canvas-card .konvajs-content { touch-action: none; }
+/* 復原／重做：畫布左上角兩顆小圓鈕（離邊緣留多一點空間） */
+.history-btns {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 4; /* 蓋在畫布上，但在去背遮罩（z-index 5）底下 */
+  display: flex;
+  gap: 6px;
+}
+.history-btn {
+  width: 32px;
+  height: 32px;
+  border: 1.5px solid var(--mint);
+  border-radius: 50%;
+  background: rgba(54, 63, 89, 0.45);
+  font-size: 17px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.12s, opacity 0.2s;
+}
+.history-btn:active:not(:disabled) { transform: scale(0.88); }
+.history-btn:disabled { opacity: 0.35; }
 .canvas-hint {
   position: absolute; left: 0; right: 0; bottom: 10px;
   text-align: center; font-size: 11px; opacity: 0.75; pointer-events: none;

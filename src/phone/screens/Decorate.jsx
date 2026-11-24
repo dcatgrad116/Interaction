@@ -12,8 +12,20 @@ const W = 314;
 const H = 339;
 const STEP_MOVE = 10; // 上下左右按一次移動的距離
 const STEP_ZOOM = 1.12; // 放大縮小按一次的倍率
+const HISTORY_MAX = 30; // 復原最多記幾步（太多會吃手機記憶體）
 const newId = () => Math.random().toString(36).slice(2, 9);
 const jitter = (n) => (Math.random() - 0.5) * n; // 新元素位置稍微錯開，才不會全部疊在正中間
+
+// 復原的彎箭頭圖示；flip＝左右翻轉，變成重做
+function UndoIcon({ flip = false }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+      strokeLinecap="round" strokeLinejoin="round" style={flip ? { transform: 'scaleX(-1)' } : undefined} aria-hidden="true">
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+    </svg>
+  );
+}
 
 // 讀取圖片給 Konva 用
 function useLoadedImage(src) {
@@ -136,14 +148,56 @@ export default function Decorate({ character, items, setItems, onBack, onNext })
     updateDelPos();
   }); // 每次重畫都同步一次（圖片載入完成後節點才會出現）
 
+  // ---------- 復原／重做 ----------
+  // 原理像一疊便利貼：每做一個動作，就把「動作前的畫面」貼到「過去」那疊；
+  // 按復原 → 從「過去」拿最上面一張回來，目前的畫面改貼到「未來」那疊；按重做則反過來
+  const itemsRef = useRef(items); // 永遠指向最新的畫面內容
+  itemsRef.current = items;
+  const pastRef = useRef([]);
+  const futureRef = useRef([]);
+  const [, setHistTick] = useState(0); // 紀錄變動時讓按鈕重新判斷能不能按
+  const syncHist = () => setHistTick((n) => n + 1);
+
+  // 所有「使用者的編輯動作」都經過這裡，才會被記成一步
+  const commit = (update) => {
+    const prev = itemsRef.current;
+    const next = update(prev);
+    if (next === prev) return; // 沒有改變就不記
+    pastRef.current = [...pastRef.current, prev].slice(-HISTORY_MAX);
+    futureRef.current = []; // 做了新動作，原本可以重做的就清掉
+    itemsRef.current = next; // 立刻更新，連續快速操作時才不會拿到舊畫面
+    setItems(next);
+    syncHist();
+  };
+  const undo = () => {
+    const prev = pastRef.current.at(-1);
+    if (!prev) return;
+    pastRef.current = pastRef.current.slice(0, -1);
+    futureRef.current = [...futureRef.current, itemsRef.current];
+    itemsRef.current = prev;
+    setItems(prev);
+    syncHist();
+  };
+  const redo = () => {
+    const next = futureRef.current.at(-1);
+    if (!next) return;
+    futureRef.current = futureRef.current.slice(0, -1);
+    pastRef.current = [...pastRef.current, itemsRef.current];
+    itemsRef.current = next;
+    setItems(next);
+    syncHist();
+  };
+  const canUndo = pastRef.current.length > 0 && !busy;
+  const canRedo = futureRef.current.length > 0 && !busy;
+
   // ---------- 修改元素 ----------
-  const patch = (id, changes) => setItems((list) => list.map((i) => (i.id === id ? { ...i, ...changes } : i)));
+  const patch = (id, changes) => commit((list) => list.map((i) => (i.id === id ? { ...i, ...changes } : i)));
   const add = (item) => {
-    setItems((list) => [...list, item]);
+    commit((list) => [...list, item]);
     setSelectedId(item.id);
   };
   const remove = (id) => {
-    setItems((list) => list.filter((i) => i.id !== id));
+    commit((list) => list.filter((i) => i.id !== id));
     setSelectedId(null);
   };
 
@@ -154,11 +208,12 @@ export default function Decorate({ character, items, setItems, onBack, onNext })
   // 圖層順序：陣列越後面＝越上層
   const reorder = (mode) => {
     if (!selected) return;
-    setItems((list) => {
+    commit((list) => {
       const arr = [...list];
       const i = arr.findIndex((x) => x.id === selected.id);
       const [it] = arr.splice(i, 1);
       const to = { up: Math.min(arr.length, i + 1), down: Math.max(0, i - 1), top: arr.length, bottom: 0 }[mode];
+      if (to === i) return list; // 已經在最上／最下層，不算一步
       arr.splice(to, 0, it);
       return arr;
     });
@@ -290,13 +345,23 @@ export default function Decorate({ character, items, setItems, onBack, onNext })
           </Layer>
         </Stage>
 
+        {/* 復原／重做（畫布左上角） */}
+        <div className="history-btns">
+          <button className="history-btn" aria-label="復原" title="復原" disabled={!canUndo} onClick={undo}>
+            <UndoIcon />
+          </button>
+          <button className="history-btn" aria-label="重做" title="重做" disabled={!canRedo} onClick={redo}>
+            <UndoIcon flip />
+          </button>
+        </div>
+
         {/* 刪除選中的元素 */}
         {delPos && (
           <button
             aria-label="刪除"
             onClick={() => remove(selectedId)}
             style={{
-              position: 'absolute', left: delPos.left, top: delPos.top, width: 24, height: 24,
+              position: 'absolute', zIndex: 4, left: delPos.left, top: delPos.top, width: 24, height: 24,
               borderRadius: '50%', background: '#363f59', border: '1.5px solid #bedee1', fontSize: 12, lineHeight: 1,
             }}
           >
