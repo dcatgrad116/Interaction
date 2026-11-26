@@ -18,6 +18,7 @@ const DESIGN_W = 1440; // 設計稿寬度
 const SPRITE_W = 165; // 一般作品寬度（設計稿基準）
 const SPOT_SCALE = 1.9; // 放大倍率
 const MASCOT_COUNT = 5; // 作品不夠時，用吉祥物補位，畫面才不會空
+const TAG_S = 0.7; // 左上角標語和星星線的大小（設計稿的 70%）
 
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -273,10 +274,14 @@ export default function BigScreen() {
       {/* 標題區 */}
       <header ref={headRef} className="screen__head" style={{ left: px(64), top: px(74) }}>
         <img src="/assets/logo.webp" alt="鏡行式" style={{ width: px(198) }} />
-        <h1 style={{ fontSize: px(36), marginTop: px(32) }}>與展覽小夥伴一起，留下今天的好心情！</h1>
-        <div className="screen__starline" style={{ width: px(643), height: px(14), marginTop: px(24) }}>
-          <img src="/assets/starline.webp" alt="" style={{ width: px(508) }} />
-          <img src="/assets/starline.webp" alt="" style={{ width: px(508), left: px(322) }} />
+        {/* 標語和星星線：比設計稿縮小 30%（× TAG_S），並往上靠近 logo */}
+        <h1 style={{ fontSize: px(36 * TAG_S), marginTop: px(16) }}>與展覽小夥伴一起，留下今天的好心情！</h1>
+        <div
+          className="screen__starline"
+          style={{ width: px(643 * TAG_S), height: px(14 * TAG_S), marginTop: px(24 * TAG_S) }}
+        >
+          <img src="/assets/starline.webp" alt="" style={{ width: px(508 * TAG_S) }} />
+          <img src="/assets/starline.webp" alt="" style={{ width: px(508 * TAG_S), left: px(322 * TAG_S) }} />
         </div>
       </header>
 
